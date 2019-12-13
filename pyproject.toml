@@ -7,6 +7,10 @@ license = "CC0-1.0"
 
 [tool.poetry.dependencies]
 python = "^3.7"
+numba = {version = "^0.46.0", optional = true}
+
+[tool.poetry.extras]
+numba = ["numba"]
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.750.0"
