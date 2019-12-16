@@ -46,10 +46,25 @@ numpy = "*"
 category = "main"
 description = "NumPy is the fundamental package for array computing with Python."
 name = "numpy"
-optional = true
+optional = false
 python-versions = ">=3.5"
 version = "1.17.4"
 
+[[package]]
+category = "main"
+description = "PEP 561 type stubs for numpy"
+name = "numpy-stubs"
+optional = false
+python-versions = "*"
+version = "0.0.1"
+
+[package.dependencies]
+numpy = ">=1.14.0"
+
+[package.source]
+reference = "be9a47933de1b89e482b05b16c0a493da2dcb14a"
+type = "git"
+url = "https://github.com/numpy/numpy-stubs.git"
 [[package]]
 category = "dev"
 description = "a fork of Python 2 and 3 ast modules with type comment support"
@@ -70,7 +85,7 @@ version = "3.7.4.1"
 numba = ["numba"]
 
 [metadata]
-content-hash = "f37e9dfc24c847f1ec98c9802824a5855bd54cbb2ecda943109d00a22d1bd69d"
+content-hash = "c652030d638db9c6f798c1ec4bc4c4395a13745f7faf5c845ea62c0410ec6d69"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -163,6 +178,7 @@ numpy = [
     {file = "numpy-1.17.4-cp38-cp38-win_amd64.whl", hash = "sha256:ada4805ed51f5bcaa3a06d3dd94939351869c095e30a2b54264f5a5004b52170"},
     {file = "numpy-1.17.4.zip", hash = "sha256:f58913e9227400f1395c7b800503ebfdb0772f1c33ff8cb4d6451c06cabdf316"},
 ]
+numpy-stubs = []
 typed-ast = [
     {file = "typed_ast-1.4.0-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:262c247a82d005e43b5b7f69aff746370538e176131c32dda9cb0f324d27141e"},
     {file = "typed_ast-1.4.0-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:71211d26ffd12d63a83e079ff258ac9d56a1376a25bc80b1cdcdf601b855b90b"},
