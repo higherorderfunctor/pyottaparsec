@@ -21,7 +21,33 @@ BaseBufferType = Union[
 
 BufferType = Union[BaseBufferType, Iterator[BaseBufferType]]
 
-def append_from_ibuffer(a: np.ndarray, i: Iterator[BaseBufferType]) -> np.ndarray:
+Pos = NewType('Pos', int)
+
+class Result(Generic[R]):
+    pass
+
+
+@dataclass
+class Fail(Result[R]):
+    string: np.ndarray
+    stack: Sequence[Text]
+    msg: Text
+
+
+@dataclass
+class Done(Result[R]):
+    string: np.ndarray
+    result: R
+
+
+class Buffer:
+    def __init__(self) -> None:
+        self.data = np.zeros(0, dtype=np.uint8)
+    def feed(self) -> None:
+        raise BufferError('out of input')
+
+
+def append_from_istring(a: np.ndarray, i: Iterator[BaseBufferType]) -> np.ndarray:
     try:
         return np.concatenate([  #type: ignore
             a, np.frombuffer(next(i), dtype=np.uint8)  # type: ignore
@@ -29,109 +55,105 @@ def append_from_ibuffer(a: np.ndarray, i: Iterator[BaseBufferType]) -> np.ndarra
     except (StopIteration, GeneratorExit):
         raise BufferError('out of input')
 
-class Buffer:
-    pass
 
-@dataclass
-class Buffer:
-    fp: BufferType
+def buffer(string: BufferType) -> Buffer:
+    if isinstance(string, collections.abc.Iterator):
+        istring = string
+        
+        @nb.jitclass([('data', nb.u1[::1])])  # type: ignore
+        class IteratorBuffer(Buffer):
+            def feed(self) -> None:
+                with nb.objmode():  # type: ignore
+                    self.data = append_from_istring(self.data, istring)
 
-    @property
-    def state(self):
-        if isinstance(self.fp, collections.abc.Iterator):
-            _fp = self.fp
-            
-            @nb.jitclass([('fp', nb.u1[::1])])
-            class IteratorState:
-                def __init__(self) -> None:
-                    self.fp = np.zeros(0, dtype=np.uint8)
+        return IteratorBuffer()
 
-                def feed(self) -> None:
-                    with nb.objmode():
-                        self.fp = append_from_ibuffer(self.fp, _fp)
+    @nb.jitclass([('data', nb.u1[::1])])  # type: ignore
+    class ArrayBuffer(Buffer):
+        def __init__(self, data: BaseBufferType) -> None:
+            self.data: np.ndarray = np.frombuffer(string, dtype=np.uint8)
 
+    return ArrayBuffer(np.frombuffer(string, dtype=np.uint8))  # type: ignore
 
-            return IteratorState()
+Failure = Callable[[Buffer, Pos, Sequence[Text], Text], Result[R]]
+Success = Callable[[Buffer, Pos, R], Result[R]]
 
-        @nb.jitclass([('fp', nb.u1[::1])])
-        class State:
-            def __init__(self, fp) -> None:
-                self.fp = fp
+def fail(buffer: Buffer, pos: Pos, stack: Sequence[Text], msg: Text) -> Result[R]:
+    return Fail(buffer.data[pos:], stack, msg)  # type: ignore
 
-            def feed(self):
-                raise BufferError('out of input')
-        return State(np.frombuffer(self.fp, dtype=np.uint8))
+def success(buffer: Buffer, pos: Pos, value: R) -> Result[R]:
+    return Done(buffer.data[pos:], value)  # type: ignore
 
-
-def parse(parser: Parser[A], string: BufferType) -> Result[A]:
-    parser.run_parser(buffer(string), Pos(0), fail, success)
-
-
-@dataclass
-class Result(Generic[R]):
-    pass
-
-@dataclass
-class Fail(Result[R]):
-    pass
-
-
-@dataclass
-class Partial(Result[R]):
-    pass
-
-@dataclass
-class Done(Result[R]):
-    result: R
-    data: bytes
-
-
-@dataclass
 class Parser(Generic[R]):
     @staticmethod
-    def parse(data: bytes) -> Result[R]:
+    def run_parser(string: Buffer, pos: Pos, lose: Failure[R], succ: Success[R]) -> Result[R]:
         pass
 
 
-class RequestInput(Exception):
-    pass
+def parse(parser: Parser[A], string: BufferType) -> Result[A]:
+    return parser.run_parser(buffer(string), Pos(0), fail, success)
 
 
+def length_at_least(pos: Pos, n: int, string: Buffer) -> bool:
+    return string.data.nbytes >= pos + n
 
-st = Buffer(iter([
+
+def ensure_suspended(n, string: Buffer, pos: Pos, lose, succ) -> Result[R]:
+    if length_at_least(pos, n, string):
+        pass
+
+
+class PeekWord8(Parser[np.uint8]):
+    @staticmethod
+    def run_parser(
+            string: Buffer, pos: Pos, lose: Failure[np.uint8], succ: Success[np.uint8]
+    ) -> Result[np.uint8]:
+        if length_at_least(pos, 1, string):
+            return succ(string, pos, string.data[pos])  # type: ignore
+        string.feed()
+        return succ(string, pos, string.data[pos])  # type: ignore
+
+peek_word8 = PeekWord8()
+
+# def satisfy() -> Parser[np.uint8]
+
+string = iter([
     np.array([1, 2], dtype=np.uint8),
     np.array([1, 3], dtype=np.uint8),
     np.array([4, 5], dtype=np.uint8),
-])).state
+])
 
-@nb.njit(nb.u1[::1](nb.typeof(st)))
-def test(st):
-    st.feed()
-    st.feed()
-    st.feed()
-    return st.fp
-print('>>', test(st))
+r: Result[np.uint8] = parse(peek_word8, string)
 
+print(r)
 
-Pos = NewType('Pos', int)
+# @nb.njit(nb.u1[::1](nb.typeof(string)))
+# def test(string):
+#     string.feed()
+#     string.feed()
+#     string.feed()
+#     return string.data
+# print('>>', test(string))
 
+# 
+# 
+# 
+# 
+# @dataclass
+# class AnyWord8(Parser[int]):
+#     @staticmethod
+#     def run_parser(data: bytes, pos: Pos) -> Result[int]:
+#         @nb.njit(nb.types.Tuple((nb.u1, nb.u1))(nb.typeof(data), nb.typeof(pos)))
+#         def any_word8(data, pos):
+#             if len(data) < 1:
+#                 raise RequestInput()
+#             return pos, pos+1
+#             
+#         return Done(*any_word8(data, 0))
+# 
+# any_word8 = AnyWord8()
 
-
-@dataclass
-class AnyWord8(Parser[int]):
-    @staticmethod
-    def run_parser(data: bytes, pos: Pos) -> Result[int]:
-        @nb.njit(nb.types.Tuple((nb.u1, nb.u1))(nb.typeof(data), nb.typeof(pos)))
-        def any_word8(data, pos):
-            if len(data) < 1:
-                raise RequestInput()
-            return pos, pos+1
-            
-        return Done(*any_word8(data, 0))
-
-any_word8 = AnyWord8()
-
-print(any_word8.parse(b'20', Pos(0)))
+#print(any_word8.parse(b'20', Pos(0)))
 
 
 
