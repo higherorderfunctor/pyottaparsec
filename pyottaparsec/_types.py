@@ -134,3 +134,4 @@ class Parser(Generic[A, R]):
         return FailParser()
 
     def parse(data: bytearray) -> Result[R]:
+        pass

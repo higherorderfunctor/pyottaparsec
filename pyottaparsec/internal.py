@@ -6,13 +6,32 @@ R = TypeVar('R')
 S = TypeVar('S')
 
 A_co = TypeVar('A_co', covariant=True)
-R_co = TypeVar('R_co', covariant=True)
+R_co =  oTypeVar('R_co', covariant=True)
 S_co = TypeVar('S_co', covariant=True)
 
 A_con = TypeVar('A_con', contravariant=True)
 R_con = TypeVar('R_con', contravariant=True)
 S_con = TypeVar('S_con', contravariant=True)
 
+from .maybe import Just, Nothing, Maybe
+from .types import Partial, Result, Pos, More
+
+def compare_results(a: Result[R], b: Result[R]) -> Maybe[bool]:
+    if type(a) == type(b):
+        if isinstance(a, Partial):
+            return Nothing()
+        return Just(a == b)
+    return Just(False)
+
+
+def prompt(
+    view: memoryview,
+    pos: Pos,
+    _: More,
+    lose: Callalbe[[memoryview, Pos, More, IResult[R]]],
+    succ: Callalbe[[memoryview, Pos, More, IResult[R]]],
+        
+)
 
 # 
 # A = TypeVar('A')

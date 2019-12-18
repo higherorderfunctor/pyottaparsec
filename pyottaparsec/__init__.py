@@ -1,21 +1,158 @@
-# 
-# 
-# # runParser :: Parser a -> String -> a
-# # runParser m s =
-# #   case parse m s of
-# #     [(res, [])] -> res
-# #     [(_, rs)]   -> error "Parser did not consume entire stream."
-# #     _           -> error "Parser error."
-# def run_parser(m: Parser[A], s: Text) -> A:
-#     try:
-#         [(res, rs)] = m(s)
-#         if not rs:
-#             return res
-#         raise ValueError(f'Parser did not consume entire stream: {res}: "{rs}"')
-#     except ValueError:
-#         raise ValueError('Parser error')
-# 
-# 
+from typing import Callable, Sequence, Text, Tuple, TypeVar, Generic, NewType
+from dataclasses import dataclass, InitVar, field
+import numba as nb
+import numpy as np
+
+A = TypeVar('A')
+B = TypeVar('B')
+C = TypeVar('C')
+
+R = TypeVar('R')
+S = TypeVar('S')
+
+from typing import Union, Iterator, TypeVar, Optional
+import collections
+
+BaseBufferType = Union[
+    bytes,
+    bytearray,
+    np.ndarray
+]
+
+BufferType = Union[BaseBufferType, Iterator[BaseBufferType]]
+
+def append_from_ibuffer(a: np.ndarray, i: Iterator[BaseBufferType]) -> np.ndarray:
+    try:
+        return np.concatenate([  #type: ignore
+            a, np.frombuffer(next(i), dtype=np.uint8)  # type: ignore
+        ])
+    except (StopIteration, GeneratorExit):
+        raise BufferError('out of input')
+
+
+
+@dataclass
+class Buffer:
+    fp: BufferType
+
+    @property
+    def state(self):
+        if isinstance(self.fp, collections.abc.Iterator):
+            _fp = self.fp
+            
+            @nb.jitclass([('fp', nb.u1[::1])])
+            class IteratorState:
+                def __init__(self) -> None:
+                    self.fp = np.zeros(0, dtype=np.uint8)
+
+                def feed(self) -> None:
+                    with nb.objmode():
+                        self.fp = append_from_ibuffer(self.fp, _fp)
+
+
+            return IteratorState()
+
+        @nb.jitclass([('fp', nb.u1[::1])])
+        class State:
+            def __init__(self, fp) -> None:
+                self.fp = fp
+
+            def feed(self):
+                raise BufferError('out of input')
+        return State(np.frombuffer(self.fp, dtype=np.uint8))
+
+
+def parse(parser: Parser[A], string: BufferType) -> Result[A]:
+    parser.run_parser(buffer(string), Pos(0), fail, success)
+
+
+@dataclass
+class Result(Generic[R]):
+    pass
+
+@dataclass
+class Fail(Result[R]):
+    pass
+
+
+@dataclass
+class Partial(Result[R]):
+    pass
+
+@dataclass
+class Done(Result[R]):
+    result: R
+    data: bytes
+
+
+@dataclass
+class Parser(Generic[R]):
+    @staticmethod
+    def parse(data: bytes) -> Result[R]:
+        pass
+
+
+class RequestInput(Exception):
+    pass
+
+
+
+st = Buffer(iter([
+    np.array([1, 2], dtype=np.uint8),
+    np.array([1, 3], dtype=np.uint8),
+    np.array([4, 5], dtype=np.uint8),
+])).state
+
+@nb.njit(nb.u1[::1](nb.typeof(st)))
+def test(st):
+    st.feed()
+    st.feed()
+    st.feed()
+    return st.fp
+print('>>', test(st))
+
+
+Pos = NewType('Pos', int)
+
+
+
+@dataclass
+class AnyWord8(Parser[int]):
+    @staticmethod
+    def run_parser(data: bytes, pos: Pos) -> Result[int]:
+        @nb.njit(nb.types.Tuple((nb.u1, nb.u1))(nb.typeof(data), nb.typeof(pos)))
+        def any_word8(data, pos):
+            if len(data) < 1:
+                raise RequestInput()
+            return pos, pos+1
+            
+        return Done(*any_word8(data, 0))
+
+any_word8 = AnyWord8()
+
+print(any_word8.parse(b'20', Pos(0)))
+
+
+
+# newtype Parser a = Parser { parse :: String -> [(a,String)] }
+#Parser = Callable[[Text], Sequence[Tuple[A, Text]]]
+
+# runParser :: Parser a -> String -> a
+# runParser m s =
+#   case parse m s of
+#     [(res, [])] -> res
+#     [(_, rs)]   -> error "Parser did not consume entire stream."
+#     _           -> error "Parser error."
+#def run_parser(m: Parser[A], s: Text) -> A:
+#    try:
+#        [(res, rs)] = m(s)
+#        if not rs:
+#            return res
+#        raise ValueError(f'Parser did not consume entire stream: {res}: "{rs}"')
+#    except ValueError:
+#        raise ValueError('Parser error')
+
+
 # # item :: Parser Char
 # # item = Parser $ \s ->
 # #   case s of
@@ -379,6 +516,6 @@
 #             print(eval(run(input('> '))))
 #         except Exception as err:
 #             print(err)
-
-
-
+# 
+# 
+# 
