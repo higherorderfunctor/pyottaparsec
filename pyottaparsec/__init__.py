@@ -29,7 +29,8 @@ def append_from_ibuffer(a: np.ndarray, i: Iterator[BaseBufferType]) -> np.ndarra
     except (StopIteration, GeneratorExit):
         raise BufferError('out of input')
 
-
+class Buffer:
+    pass
 
 @dataclass
 class Buffer:
