@@ -10,9 +10,6 @@ python = "^3.7"
 llvmlite = {git = "https://github.com/numba/llvmlite.git"}
 numba = {git = "https://github.com/numba/numba.git"}
 
-[tool.poetry.extras]
-numba = ["numba"]
-
 [tool.poetry.dev-dependencies]
 mypy = "^0.750.0"
 numpy-stubs = {git = "https://github.com/numpy/numpy-stubs.git"}

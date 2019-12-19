@@ -10,7 +10,6 @@ version = "0.31.0.dev0+10.gfc7b122"
 reference = "fc7b122c8e655fe42f797007ab077f430e07f628"
 type = "git"
 url = "https://github.com/numba/llvmlite.git"
-
 [[package]]
 category = "dev"
 description = "Optional static typing for Python"
@@ -41,7 +40,7 @@ description = "compiling Python code using LLVM"
 name = "numba"
 optional = false
 python-versions = "*"
-version = "0.47.0.dev0+580.g823653c"
+version = "0.47.0.dev0+652.g63fbcfde0"
 
 [package.dependencies]
 llvmlite = ">=0.31.0dev0"
@@ -49,7 +48,7 @@ numpy = "*"
 setuptools = "*"
 
 [package.source]
-reference = "823653c6ae4e3bebd1f5e18fc140d97dbd3f7c98"
+reference = "63fbcfde04465b5f34a6a029245f9d287eb058d9"
 type = "git"
 url = "https://github.com/numba/numba.git"
 [[package]]
@@ -75,7 +74,6 @@ numpy = ">=1.14.0"
 reference = "be9a47933de1b89e482b05b16c0a493da2dcb14a"
 type = "git"
 url = "https://github.com/numpy/numpy-stubs.git"
-
 [[package]]
 category = "dev"
 description = "a fork of Python 2 and 3 ast modules with type comment support"
@@ -92,11 +90,8 @@ optional = false
 python-versions = "*"
 version = "3.7.4.1"
 
-[extras]
-numba = ["numba"]
-
 [metadata]
-content-hash = "3d29db7743759e05e4f5c385d13704c25f483d7c1266efa6ca2afc573178a595"
+content-hash = "0debc1a70233fca64ee6765685b32c170cc8228d272453591c97d5761fdc1775"
 python-versions = "^3.7"
 
 [metadata.files]
